@@ -92,7 +92,15 @@ assert_aligned(meta, mat, sprintf("arm '%s' degPatterns input", arm))
 
 # --- minc ------------------------------------------------------------------
 minc_cfg <- cfg_req("cluster.degpatterns.minc")
-minc <- if (identical(minc_cfg, "auto")) max(15L, round(nrow(mat) / 100)) else as.integer(minc_cfg)
+# auto is capped at the guardrail ceiling below (n / 20): its floor of 15 would
+# otherwise fail that guardrail for any arm with fewer than 300 features, and
+# "try minc: auto" would be advice that cannot work.
+minc_auto <- as.integer(min(max(15L, round(nrow(mat) / 100)), floor(nrow(mat) / 20)))
+minc <- if (identical(minc_cfg, "auto")) {
+  minc_auto
+} else {
+  as.integer(minc_cfg)
+}
 if (identical(minc_cfg, "auto")) {
   message(sprintf("[cluster] minc: auto resolves to %d for %d features", minc, nrow(mat)))
 }
@@ -101,7 +109,7 @@ cd_assert(minc <= nrow(mat) / 20,
           paste0("arm '%s': cluster.degpatterns.minc is %d but only %d features reach ",
                  "clustering, so a cluster would need %.0f%% of them. Try minc: %d, ",
                  "or minc: auto."),
-          arm, minc, nrow(mat), 100 * minc / nrow(mat), max(15L, round(nrow(mat) / 100)))
+          arm, minc, nrow(mat), 100 * minc / nrow(mat), minc_auto)
 
 # --- profiles used for clustering, centroids and remainder assignment ------
 # The same representation degPatterns clusters on: summarize by timepoint,

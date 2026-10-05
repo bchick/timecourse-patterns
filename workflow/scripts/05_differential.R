@@ -68,6 +68,15 @@ rng <- apply(tp_means, 1, function(x) max(x) - min(x))
 method <- cfg_req("differential.method")
 res <- NULL
 
+# External size factors (input.size_factors) live on dds_all. A fresh
+# DESeqDataSet would re-estimate median-of-ratios factors, silently undoing
+# them, so they are copied onto each per-arm object.
+carry_size_factors <- function(dds, dds_all, samples) {
+  sf <- sizeFactors(dds_all)
+  if (!is.null(sf)) sizeFactors(dds) <- sf[samples]
+  dds
+}
+
 if (method == "lrt") {
   # ---- likelihood ratio test: any difference across time at all -----------
   design_f <- stats::as.formula(cfg_req("differential.design"))
@@ -76,6 +85,7 @@ if (method == "lrt") {
                   deparse(design_f), deparse(reduced_f)))
 
   dds <- DESeqDataSetFromMatrix(cts, colData = coldata, design = design_f)
+  dds <- carry_size_factors(dds, dds_all, samples)
   dds <- DESeq(dds, test = "LRT", reduced = reduced_f, quiet = TRUE)
   r <- as.data.frame(results(dds))
   res <- data.frame(feature_id = rownames(r), baseMean = r$baseMean,
@@ -87,6 +97,7 @@ if (method == "lrt") {
   # For users whose question is "when did it change", not "did it change".
   # min_contrasts raises the bar from any single timepoint to a sustained one.
   dds <- DESeqDataSetFromMatrix(cts, colData = coldata, design = ~ time)
+  dds <- carry_size_factors(dds, dds_all, samples)
   dds <- DESeq(dds, quiet = TRUE)
   ref <- levels(coldata$time)[1]
   others <- levels(coldata$time)[-1]

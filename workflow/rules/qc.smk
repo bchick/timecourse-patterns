@@ -31,6 +31,7 @@ rule prefilter:
         samplesheet=config["input"]["samplesheet"],
         counts=config["input"]["counts"],
         validation=P("validation"),
+        size_factors=lambda wc: config["input"].get("size_factors") or [],
     output:
         dds=P("obj_dds"),
     log:

@@ -34,6 +34,14 @@ input:
   # is numeric and is interpreted exactly as written.
   time_unit: min
 
+  # Optional TSV with columns `sample` and `size_factor`, one row per library.
+  # When set, these replace DESeq2's median-of-ratios factors in the transform
+  # and in every per-arm model. Use it when the features cannot supply a
+  # normalization reference themselves: CUT&RUN with a genuine global shift,
+  # for example, normalized to a spike-in or an invariant region set. null
+  # means DESeq2 estimates them from the counts, as before.
+  size_factors: null
+
 output:
   dir: results
 

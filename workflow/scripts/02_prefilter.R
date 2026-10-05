@@ -48,6 +48,29 @@ assert_aligned(coldata, cts, "colData against counts")
 storage.mode(cts) <- "integer"
 dds <- DESeqDataSetFromMatrix(cts, colData = coldata, design = ~ 1)
 
+# --- optional external size factors -----------------------------------------
+# Set before the prefilter so they are fixed by the libraries, not by which
+# features survive. vst() and every per-arm DESeq() then use them instead of
+# estimating median-of-ratios factors.
+sf_path <- cfg("input.size_factors", NULL)
+if (!is.null(sf_path)) {
+  sf <- utils::read.delim(sf_path, stringsAsFactors = FALSE)
+  cd_assert(all(c("sample", "size_factor") %in% colnames(sf)),
+            "input.size_factors (%s) needs columns 'sample' and 'size_factor'.", sf_path)
+  cd_assert(!anyDuplicated(sf$sample), "input.size_factors has duplicated samples.")
+  missing <- setdiff(colnames(dds), sf$sample)
+  cd_assert(length(missing) == 0,
+            "input.size_factors is missing sample(s): %s", paste(missing, collapse = ", "))
+  v <- as.numeric(sf$size_factor[match(colnames(dds), sf$sample)])
+  cd_assert(all(is.finite(v) & v > 0), "input.size_factors must be finite and positive.")
+  sizeFactors(dds) <- v
+  message(sprintf("[prefilter] external size factors from %s (range %.3g to %.3g)",
+                  sf_path, min(v), max(v)))
+  cd_note("size_factors", "external")
+} else {
+  cd_note("size_factors", "median_of_ratios")
+}
+
 min_mean <- cfg_req("filter.min_mean_counts")
 keep <- rowMeans(counts(dds)) >= min_mean
 n_in <- nrow(dds)
